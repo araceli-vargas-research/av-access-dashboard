@@ -6,877 +6,596 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="AV Dashboard Overview",
+    page_title="Autonomous Vehicle Access Overview",
     page_icon="🚘",
     layout="wide",
 )
 
 
 # ---------------------------------------------------------
-# COLORS
+# DATA PATHS
 # ---------------------------------------------------------
 
-NAVY = "#13264F"
-BLUE = "#1768B3"
-LIGHT_BLUE = "#E7F0FC"
-
-ORANGE = "#EE8A1D"
-LIGHT_ORANGE = "#FBE9D5"
-
-TEXT = "#3F4653"
-MUTED = "#6C7483"
-LIGHT_GRAY = "#F4F6F9"
-BORDER = "#E2E6EC"
-WHITE = "#FFFFFF"
+STATE_PATH = Path("data/processed/state_access.csv")
+MARKET_PATH = Path("data/processed/market_tracker.csv")
+SAFETY_PATH = Path("data/processed/safety_data.csv")
+WAYMO_PATH = Path("data/processed/waymo_scenario_metrics.csv")
 
 
 # ---------------------------------------------------------
-# PAGE STYLING
+# DATA LOADING
 # ---------------------------------------------------------
 
-st.markdown(
-    f"""
-<style>
-.block-container {{
-    max-width: 1500px;
-    padding-top: 2rem;
-    padding-bottom: 4rem;
-    padding-left: 2rem;
-    padding-right: 2rem;
-}}
+@st.cache_data
+def load_csv(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
 
-[data-testid="stAppViewContainer"] {{
-    background-color: #F4F6F9;
-}}
-
-[data-testid="stHeader"] {{
-    background-color: transparent;
-}}
-
-.overview-title {{
-    color: {NAVY};
-    font-size: clamp(2.5rem, 4vw, 4rem);
-    line-height: 1.05;
-    letter-spacing: -0.045em;
-    font-weight: 800;
-    margin: 0;
-}}
-
-.overview-caption {{
-    color: {MUTED};
-    font-size: 1.15rem;
-    line-height: 1.6;
-    max-width: 900px;
-    margin-top: 1rem;
-    margin-bottom: 2.5rem;
-}}
-
-.section-card {{
-    background: {WHITE};
-    border: 1px solid {BORDER};
-    border-radius: 20px;
-    padding: 2rem;
-    height: 100%;
-}}
-
-.section-label {{
-    color: {ORANGE};
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 0.8rem;
-}}
-
-.section-title {{
-    color: {NAVY};
-    font-size: clamp(1.8rem, 2.7vw, 2.7rem);
-    line-height: 1.15;
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    margin: 0 0 1rem 0;
-}}
-
-.section-description {{
-    color: {MUTED};
-    font-size: 1.03rem;
-    line-height: 1.7;
-    margin: 0;
-}}
-
-.takeaway-title {{
-    color: {NAVY};
-    font-size: clamp(1.75rem, 2.5vw, 2.5rem);
-    line-height: 1.17;
-    letter-spacing: -0.035em;
-    font-weight: 800;
-    margin: 0 0 1.4rem 0;
-}}
-
-.takeaway-text {{
-    color: {MUTED};
-    font-size: 1.04rem;
-    line-height: 1.65;
-    margin-bottom: 1rem;
-}}
-
-.takeaway-highlight {{
-    color: {NAVY};
-    font-weight: 750;
-}}
-
-.metric-grid {{
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1rem;
-    margin: 1rem 0 2.5rem 0;
-}}
-
-.metric-card {{
-    background: {WHITE};
-    border: 1px solid {BORDER};
-    border-radius: 16px;
-    padding: 1.35rem 1.5rem;
-}}
-
-.metric-accent-blue {{
-    border-top: 5px solid {BLUE};
-}}
-
-.metric-accent-orange {{
-    border-top: 5px solid {ORANGE};
-}}
-
-.metric-label {{
-    color: {MUTED};
-    font-size: 0.88rem;
-    font-weight: 650;
-    margin-bottom: 0.6rem;
-}}
-
-.metric-value {{
-    color: {NAVY};
-    font-size: 2.25rem;
-    line-height: 1;
-    font-weight: 800;
-}}
-
-.metric-note {{
-    color: {MUTED};
-    font-size: 0.8rem;
-    margin-top: 0.55rem;
-}}
-
-.info-box-blue {{
-    background: {LIGHT_BLUE};
-    color: {BLUE};
-    border-radius: 14px;
-    padding: 1.25rem 1.4rem;
-    font-size: 1rem;
-    line-height: 1.55;
-    margin-top: 1rem;
-}}
-
-.info-box-orange {{
-    background: {LIGHT_ORANGE};
-    color: #A55200;
-    border-radius: 14px;
-    padding: 1.25rem 1.4rem;
-    font-size: 1rem;
-    line-height: 1.55;
-    margin-top: 1rem;
-}}
-
-.small-heading {{
-    color: {NAVY};
-    font-size: 1.35rem;
-    font-weight: 800;
-    margin-bottom: 0.4rem;
-}}
-
-.small-caption {{
-    color: {MUTED};
-    font-size: 0.95rem;
-    line-height: 1.55;
-    margin-bottom: 1rem;
-}}
-
-.safety-card {{
-    background: {WHITE};
-    border: 1px solid {BORDER};
-    border-left: 6px solid {BLUE};
-    border-radius: 16px;
-    padding: 1.5rem;
-    height: 100%;
-}}
-
-.safety-number {{
-    color: {BLUE};
-    font-size: 2.2rem;
-    line-height: 1;
-    font-weight: 800;
-    margin-bottom: 0.6rem;
-}}
-
-.safety-title {{
-    color: {NAVY};
-    font-size: 1rem;
-    font-weight: 750;
-    margin-bottom: 0.7rem;
-}}
-
-.safety-detail {{
-    color: {MUTED};
-    font-size: 0.84rem;
-    line-height: 1.5;
-}}
-
-.divider {{
-    height: 1px;
-    background: {BORDER};
-    margin: 2.5rem 0;
-}}
-
-.color-key {{
-    display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-    margin-top: 1rem;
-    color: {MUTED};
-    font-size: 0.85rem;
-}}
-
-.key-item {{
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-}}
-
-.key-dot-blue {{
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: {BLUE};
-}}
-
-.key-dot-orange {{
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: {ORANGE};
-}}
-
-.key-dot-gray {{
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #C9CED7;
-}}
-
-@media (max-width: 900px) {{
-    .metric-grid {{
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }}
-}}
-
-@media (max-width: 600px) {{
-    .block-container {{
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }}
-
-    .metric-grid {{
-        grid-template-columns: 1fr;
-    }}
-}}
-</style>
-""",
-    unsafe_allow_html=True,
-)
+    try:
+        return pd.read_csv(path)
+    except (pd.errors.EmptyDataError, pd.errors.ParserError):
+        return pd.DataFrame()
 
 
-# ---------------------------------------------------------
-# LOAD DATA
-# ---------------------------------------------------------
+state_df = load_csv(STATE_PATH)
+market_df = load_csv(MARKET_PATH)
+safety_df = load_csv(SAFETY_PATH)
 
-state_df = pd.read_csv("data/processed/state_access.csv")
+if state_df.empty:
+    st.error("The state policy dataset could not be loaded.")
+    st.stop()
 
-reviewed_df = state_df[
-    state_df["research_status"].fillna("Not reviewed") != "Not reviewed"
-].copy()
-
-safety_df = pd.read_csv("data/processed/safety_data.csv")
-market_df = pd.read_csv("data/processed/market_tracker.csv")
-
-waymo_path = Path("data/processed/waymo_scenario_metrics.csv")
-
-
-# ---------------------------------------------------------
-# SUMMARY VALUES
-# ---------------------------------------------------------
-
-states_tracked = len(reviewed_df)
-
-commercial_states = int(
-    reviewed_df["commercial_operation_allowed"]
-    .fillna(False)
-    .astype(bool)
-    .sum()
-)
-
-statewide_frameworks = int(
-    reviewed_df["statewide_rules"]
-    .fillna(False)
-    .astype(bool)
-    .sum()
-)
-
-average_policy_score = (
-    reviewed_df["overall_score"].mean()
-    if not reviewed_df.empty
-    else 0
-)
-
-active_markets = market_df["market"].nunique()
-
-public_market_rows = market_df[
-    market_df["public_access"]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-    .str.lower()
-    .eq("yes")
-]
-
-public_markets = public_market_rows["market"].nunique()
+if "research_status" in state_df.columns:
+    reviewed_df = state_df[
+        state_df["research_status"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("Not reviewed")
+    ].copy()
+else:
+    reviewed_df = state_df.copy()
 
 
 # ---------------------------------------------------------
 # PAGE HEADER
 # ---------------------------------------------------------
 
-st.markdown(
-    """
-<h1 class="overview-title">
-Autonomous vehicle access in the United States
-</h1>
+st.title("Autonomous vehicle access in the United States")
 
-<p class="overview-caption">
-A national snapshot of consumer availability, state policy conditions,
-safety evidence, and the geographic reach of autonomous vehicle services.
-</p>
-""",
-    unsafe_allow_html=True,
+st.caption(
+    "A national snapshot of consumer availability, state policy conditions, "
+    "safety evidence, and the geographic reach of autonomous vehicle services."
 )
 
 
 # ---------------------------------------------------------
-# TOP METRICS
+# HEADLINE METRICS
 # ---------------------------------------------------------
 
-st.markdown(
-    f"""
-<div class="metric-grid">
-
-    <div class="metric-card metric-accent-blue">
-        <div class="metric-label">States reviewed</div>
-        <div class="metric-value">{states_tracked}</div>
-        <div class="metric-note">Policy research coverage</div>
-    </div>
-
-    <div class="metric-card metric-accent-orange">
-        <div class="metric-label">Commercial AV states</div>
-        <div class="metric-value">{commercial_states}</div>
-        <div class="metric-note">Commercial operation recorded</div>
-    </div>
-
-    <div class="metric-card metric-accent-blue">
-        <div class="metric-label">Statewide frameworks</div>
-        <div class="metric-value">{statewide_frameworks}</div>
-        <div class="metric-note">State-level regulatory structure</div>
-    </div>
-
-    <div class="metric-card metric-accent-blue">
-        <div class="metric-label">Average policy score</div>
-        <div class="metric-value">{average_policy_score:.0f}</div>
-        <div class="metric-note">Out of 100</div>
-    </div>
-
-</div>
-""",
-    unsafe_allow_html=True,
+active_markets = (
+    market_df["market"].nunique()
+    if not market_df.empty and "market" in market_df.columns
+    else 0
 )
 
+public_market_records = 0
 
-# ---------------------------------------------------------
-# KEY TAKEAWAY + MAP
-# ---------------------------------------------------------
+if not market_df.empty and "public_access" in market_df.columns:
+    public_market_records = int(
+        market_df["public_access"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .eq("yes")
+        .sum()
+    )
 
-takeaway_col, map_col = st.columns(
-    [0.78, 1.55],
-    gap="large",
-    vertical_alignment="top",
+commercial_states = (
+    int(reviewed_df["commercial_operation_allowed"].fillna(0).sum())
+    if "commercial_operation_allowed" in reviewed_df.columns
+    else 0
 )
 
-with takeaway_col:
-    st.markdown(
-        """
-<div class="section-label">Key takeaway</div>
-
-<h2 class="takeaway-title">
-Access depends on both commercial deployment and state-level policy
-</h2>
-
-<p class="takeaway-text">
-Autonomous vehicle access remains concentrated in a limited number of
-markets. A state may permit testing or commercial operation without
-consumers having access to a publicly available service.
-</p>
-
-<p class="takeaway-text">
-Policy scores describe the legal and regulatory environment, while market
-records describe where services are currently documented.
-</p>
-
-<p class="takeaway-text takeaway-highlight">
-A favorable policy framework can enable deployment, but it does not by
-itself guarantee consumer access.
-</p>
-
-<div class="color-key">
-    <div class="key-item">
-        <span class="key-dot-blue"></span>
-        Policy and regulatory conditions
-    </div>
-
-    <div class="key-item">
-        <span class="key-dot-orange"></span>
-        Consumer access and deployment
-    </div>
-
-    <div class="key-item">
-        <span class="key-dot-gray"></span>
-        Not reviewed or unavailable
-    </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-with map_col:
-    st.markdown(
-        """
-<div class="section-card">
-<div class="small-heading">State policy environment</div>
-<div class="small-caption">
-Policy score from 0 to 100. Higher scores indicate a regulatory
-environment that is more accommodating to autonomous vehicle access.
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-    map_fig = px.choropleth(
-        state_df,
-        locations="state_code",
-        locationmode="USA-states",
-        color="overall_score",
-        scope="usa",
-        hover_name="state",
-        hover_data={
-            "state_code": False,
-            "overall_score": ":.0f",
-            "commercial_operation_allowed": True,
-            "statewide_rules": True,
-            "local_rules_allowed": True,
-            "insurance_minimum": True,
-            "research_status": True,
-        },
-        range_color=(0, 100),
-        color_continuous_scale=[
-            [0.00, "#E9EDF3"],
-            [0.35, "#B7CCE5"],
-            [0.70, "#5F91C4"],
-            [1.00, BLUE],
-        ],
-        labels={
-            "overall_score": "Policy score",
-            "commercial_operation_allowed": "Commercial operation",
-            "statewide_rules": "Statewide rules",
-            "local_rules_allowed": "Local rules allowed",
-            "insurance_minimum": "Insurance minimum",
-            "research_status": "Research status",
-        },
-    )
-
-    map_fig.update_geos(
-        bgcolor="rgba(0,0,0,0)",
-        lakecolor="white",
-        showlakes=False,
-    )
-
-    map_fig.update_layout(
-        height=520,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=0, r=0, t=5, b=0),
-        coloraxis_colorbar=dict(
-            title="Policy score",
-            tickvals=[0, 20, 40, 60, 80, 100],
-            ticktext=["0", "20", "40", "60", "80", "100"],
-            thickness=12,
-            len=0.72,
-        ),
-        font=dict(
-            family="Arial",
-            color=TEXT,
-        ),
-    )
-
-    st.plotly_chart(
-        map_fig,
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-# ---------------------------------------------------------
-# SAFETY EVIDENCE
-# ---------------------------------------------------------
-
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
-st.markdown(
-    """
-<div class="section-label">Safety evidence</div>
-
-<h2 class="section-title">
-Reported outcomes compared with human-driver benchmarks
-</h2>
-
-<p class="section-description">
-Reported reductions compare rider-only autonomous driving performance with
-human-driver benchmarks in comparable operating areas and driving exposure.
-Blue is used here because these figures describe evidence and benchmarks,
-rather than consumer availability.
-</p>
-""",
-    unsafe_allow_html=True,
+average_score = (
+    reviewed_df["overall_score"].mean()
+    if "overall_score" in reviewed_df.columns
+    else 0
 )
 
-safety_columns = st.columns(2, gap="large")
+metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
 
-for index, row in enumerate(safety_df.itertuples()):
-    study_period = getattr(row, "study_period", "")
-    comparison_group = getattr(row, "comparison_group", "")
-    geography = getattr(row, "geography", "")
+metric_col1.metric(
+    "Active markets tracked",
+    active_markets,
+    help=(
+        "Unique markets currently included in the dashboard's market tracker. "
+        "This is not a measure of total national AV activity."
+    ),
+)
 
-    detail_lines = []
+metric_col2.metric(
+    "Public-access records",
+    public_market_records,
+    help=(
+        "Market records coded as publicly accessible. A single market may have "
+        "more than one operator record."
+    ),
+)
 
-    if comparison_group:
-        detail_lines.append(
-            f"<strong>Baseline:</strong> {comparison_group}"
-        )
+metric_col3.metric(
+    "Commercial AV states",
+    commercial_states,
+    help=(
+        "States currently coded as allowing commercial autonomous-vehicle "
+        "operation under the dashboard methodology."
+    ),
+)
 
-    if study_period:
-        detail_lines.append(
-            f"<strong>Study period:</strong> {study_period}"
-        )
+metric_col4.metric(
+    "Average policy score",
+    f"{average_score:.0f}/100",
+    help=(
+        "Average of the dashboard's coded policy-access scores for reviewed states."
+    ),
+)
 
-    if geography:
-        detail_lines.append(
-            f"<strong>Geography:</strong> {geography}"
-        )
+st.divider()
 
-    details = "<br>".join(detail_lines)
 
-    with safety_columns[index % 2]:
-        st.markdown(
-            f"""
-<div class="safety-card">
-    <div class="safety-number">{row.value:.0f}% fewer</div>
-    <div class="safety-title">{row.metric}</div>
-    <div class="safety-detail">{details}</div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
+# ---------------------------------------------------------
+# NATIONAL POLICY MAP
+# ---------------------------------------------------------
+
+st.subheader("National Policy Landscape")
+
+st.caption(
+    "Higher scores reflect broader commercial authorization, driverless testing "
+    "permission, statewide rules, limits on conflicting local requirements, and "
+    "fewer additional operating mandates."
+)
+
+map_hover = {
+    "state_code": False,
+    "overall_score": True,
+}
+
+optional_hover_columns = {
+    "commercial_operation_allowed": "Commercial operation",
+    "driverless_testing_allowed": "Driverless testing",
+    "statewide_rules": "Statewide framework",
+    "local_rules_allowed": "Separate local rules allowed",
+    "human_operator_required": "Human operator required",
+    "special_permit_required": "Special permit required",
+    "research_status": "Research status",
+}
+
+for column in optional_hover_columns:
+    if column in reviewed_df.columns:
+        map_hover[column] = True
+
+map_labels = {
+    "overall_score": "Policy score",
+    **optional_hover_columns,
+}
+
+policy_map = px.choropleth(
+    reviewed_df,
+    locations="state_code",
+    locationmode="USA-states",
+    color="overall_score",
+    scope="usa",
+    hover_name="state",
+    hover_data=map_hover,
+    range_color=(0, 100),
+    color_continuous_scale=[
+        "#F1F2F7",
+        "#F5C58F",
+        "#EE8A1D",
+    ],
+    labels=map_labels,
+)
+
+policy_map.update_layout(
+    height=535,
+    margin=dict(l=0, r=0, t=0, b=0),
+    coloraxis_colorbar=dict(
+        title="Policy score",
+        thickness=16,
+    ),
+)
+
+st.plotly_chart(
+    policy_map,
+    width="stretch",
+    config={"displayModeBar": False},
+)
+
+st.caption(
+    "Policy scores summarize coded conditions and are not legal opinions. "
+    "Some state records remain preliminary pending additional source review."
+)
+
+st.divider()
+
+
+# ---------------------------------------------------------
+# CONSUMER ACCESS AND SAFETY
+# ---------------------------------------------------------
+
+access_col, safety_col = st.columns([1, 1], gap="large")
 
 
 # ---------------------------------------------------------
 # CONSUMER ACCESS
 # ---------------------------------------------------------
 
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+with access_col:
+    st.subheader("Consumer Access Snapshot")
 
-access_left, access_right = st.columns(
-    [1.25, 1],
-    gap="large",
-    vertical_alignment="top",
-)
-
-with access_left:
-    st.markdown(
-        """
-<div class="section-card">
-<div class="section-label">Consumer access</div>
-
-<h2 class="section-title">
-Markets recorded by operator
-</h2>
-
-<p class="section-description">
-Counts represent distinct markets documented in the tracker. They do not
-measure total rides, fleet size, vehicles deployed, or market share.
-</p>
-""",
-        unsafe_allow_html=True,
+    st.caption(
+        "Markets currently recorded for each operator. Bar height represents "
+        "the number of unique markets in this dataset, not ridership, fleet size, "
+        "revenue, or market share."
     )
 
-    access_summary = (
-        market_df.groupby("operator", as_index=False)
-        .agg(
-            markets=("market", "nunique"),
-            states=("state", "nunique"),
+    if (
+        not market_df.empty
+        and "operator" in market_df.columns
+        and "market" in market_df.columns
+    ):
+        aggregation = {
+            "markets": ("market", "nunique"),
+        }
+
+        if "state" in market_df.columns:
+            aggregation["states"] = ("state", "nunique")
+
+        access_summary = (
+            market_df.groupby("operator", as_index=False)
+            .agg(**aggregation)
+            .sort_values("markets", ascending=False)
         )
-        .sort_values("markets", ascending=False)
+
+        if "states" not in access_summary.columns:
+            access_summary["states"] = 0
+
+        access_chart = px.bar(
+            access_summary,
+            x="operator",
+            y="markets",
+            text="markets",
+            color="markets",
+            color_continuous_scale=[
+                "#F1F2F7",
+                "#F5C58F",
+                "#EE8A1D",
+            ],
+            labels={
+                "operator": "",
+                "markets": "Markets currently tracked",
+                "states": "States represented",
+            },
+            hover_data={
+                "states": True,
+                "markets": True,
+            },
+        )
+
+        access_chart.update_traces(
+            textposition="outside",
+            cliponaxis=False,
+        )
+
+        access_chart.update_layout(
+            height=415,
+            coloraxis_showscale=False,
+            margin=dict(l=0, r=20, t=15, b=0),
+            yaxis=dict(
+                title="Markets currently tracked",
+                rangemode="tozero",
+            ),
+        )
+
+        st.plotly_chart(
+            access_chart,
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+
+        st.info(
+            "Operator totals describe the dashboard's research coverage. "
+            "They do not indicate how many vehicles or rides each operator provides."
+        )
+    else:
+        st.warning("Consumer-access market data is not currently available.")
+
+
+# ---------------------------------------------------------
+# SAFETY SNAPSHOT
+# ---------------------------------------------------------
+
+with safety_col:
+    st.subheader("Safety Snapshot")
+
+    st.caption(
+        "Reported crash reductions compared with human-driver benchmarks in "
+        "comparable operating areas and driving exposure."
     )
 
-    access_fig = px.bar(
-        access_summary,
-        x="operator",
-        y="markets",
-        text="markets",
-        custom_data=["states"],
-        labels={
-            "operator": "Operator",
-            "markets": "Markets tracked",
-        },
-    )
+    if (
+        not safety_df.empty
+        and "metric" in safety_df.columns
+        and "value" in safety_df.columns
+    ):
+        safety_chart_df = safety_df.copy()
 
-    access_fig.update_traces(
-        marker_color=ORANGE,
-        textposition="outside",
-        textfont=dict(
-            color=NAVY,
-            size=14,
-        ),
-        hovertemplate=(
-            "<b>%{x}</b><br>"
-            "Markets tracked: %{y}<br>"
-            "States represented: %{customdata[0]}"
-            "<extra></extra>"
-        ),
-    )
+        safety_chart_df["value"] = pd.to_numeric(
+            safety_chart_df["value"],
+            errors="coerce",
+        )
 
-    chart_max = max(access_summary["markets"].max(), 1)
+        safety_chart_df = safety_chart_df.dropna(
+            subset=["value"]
+        ).sort_values("value")
 
-    access_fig.update_yaxes(
-        title="Markets currently tracked",
-        range=[0, chart_max + max(2, chart_max * 0.18)],
-        rangemode="tozero",
-        tickmode="linear",
-        dtick=2 if chart_max > 6 else 1,
-        gridcolor="#E1E6ED",
-        zerolinecolor="#C9D0DA",
-        tickfont=dict(color=MUTED),
-        title_font=dict(color=MUTED),
-    )
+        safety_chart_df["display_value"] = (
+            safety_chart_df["value"]
+            .round(0)
+            .astype(int)
+            .astype(str)
+            + "% fewer"
+        )
 
-    access_fig.update_xaxes(
-        title="",
-        tickfont=dict(color=MUTED),
-        showgrid=False,
-    )
+        safety_chart = px.bar(
+            safety_chart_df,
+            x="value",
+            y="metric",
+            orientation="h",
+            text="display_value",
+            color="value",
+            color_continuous_scale=[
+                "#F1F2F7",
+                "#F5C58F",
+                "#EE8A1D",
+            ],
+            labels={
+                "value": "Percent fewer crashes",
+                "metric": "",
+            },
+        )
 
-    access_fig.update_layout(
-        height=420,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        showlegend=False,
-        margin=dict(l=20, r=20, t=35, b=20),
-        bargap=0.28,
-        font=dict(
-            family="Arial",
-            color=TEXT,
-        ),
-    )
+        safety_chart.update_traces(
+            textposition="inside",
+            insidetextanchor="end",
+            textfont=dict(size=13),
+            cliponaxis=False,
+        )
 
-    st.plotly_chart(
-        access_fig,
-        use_container_width=True,
-        config={"displayModeBar": False},
-    )
+        safety_chart.update_layout(
+            height=415,
+            coloraxis_showscale=False,
+            margin=dict(l=0, r=15, t=15, b=0),
+            xaxis=dict(
+                title="Percent fewer crashes",
+                range=[0, 100],
+                ticksuffix="%",
+            ),
+            yaxis=dict(
+                automargin=True,
+            ),
+        )
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.plotly_chart(
+            safety_chart,
+            width="stretch",
+            config={"displayModeBar": False},
+        )
 
-with access_right:
-    st.markdown(
-        f"""
-<div class="section-card">
-<div class="section-label">Market access</div>
+        study_periods = []
 
-<h2 class="section-title">
-Current tracker coverage
-</h2>
+        if "study_period" in safety_df.columns:
+            study_periods = [
+                str(value).strip()
+                for value in safety_df["study_period"].dropna().unique()
+                if str(value).strip()
+            ]
 
-<div class="metric-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 1.25rem;">
+        geographies = []
 
-    <div class="metric-card metric-accent-orange">
-        <div class="metric-label">Active markets tracked</div>
-        <div class="metric-value">{active_markets}</div>
-        <div class="metric-note">Distinct markets in the dataset</div>
-    </div>
+        if "geography" in safety_df.columns:
+            geographies = [
+                str(value).strip()
+                for value in safety_df["geography"].dropna().unique()
+                if str(value).strip()
+            ]
 
-    <div class="metric-card metric-accent-orange">
-        <div class="metric-label">Publicly accessible markets</div>
-        <div class="metric-value">{public_markets}</div>
-        <div class="metric-note">Distinct markets marked public</div>
-    </div>
+        comparison_groups = []
 
-</div>
+        if "comparison_group" in safety_df.columns:
+            comparison_groups = [
+                str(value).strip()
+                for value in safety_df["comparison_group"].dropna().unique()
+                if str(value).strip()
+            ]
 
-<div class="info-box-orange">
-Operator counts indicate where services are recorded in the dataset.
-They should not be interpreted as ridership, fleet size, or market share.
-</div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
+        with st.expander("View safety baseline and study context"):
+            if comparison_groups:
+                st.markdown("**Comparison baseline**")
+                for value in comparison_groups:
+                    st.write(value)
+
+            if study_periods:
+                st.markdown("**Study periods represented**")
+                for value in study_periods:
+                    st.write(value)
+
+            if geographies:
+                st.markdown("**Geographies represented**")
+                for value in geographies:
+                    st.write(value)
+
+            if not comparison_groups and not study_periods and not geographies:
+                st.write(
+                    "Detailed safety-study context has not yet been added."
+                )
+
+        st.caption(
+            "Safety figures may come from different study periods. "
+            "See the Safety Evidence page for full source context."
+        )
+    else:
+        st.warning("Safety evidence data is not currently available.")
+
+st.divider()
 
 
 # ---------------------------------------------------------
 # RESEARCH COVERAGE
 # ---------------------------------------------------------
 
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+st.subheader("Research Coverage")
+
+st.caption(
+    "These totals describe the information currently included in the dashboard, "
+    "not the entire autonomous-vehicle industry."
+)
+
+coverage_col1, coverage_col2, coverage_col3 = st.columns(3)
+
+coverage_col1.metric(
+    "State policy records",
+    len(reviewed_df),
+)
+
+coverage_col2.metric(
+    "Market records",
+    len(market_df),
+)
 
 scenario_count = 0
 
-if waymo_path.exists():
+if WAYMO_PATH.exists():
     try:
-        waymo_df = pd.read_csv(waymo_path)
+        waymo_df = pd.read_csv(WAYMO_PATH)
         scenario_count = len(waymo_df)
-    except pd.errors.EmptyDataError:
+    except (pd.errors.EmptyDataError, pd.errors.ParserError):
         scenario_count = 0
 
-st.markdown(
-    f"""
-<div class="section-label">Research coverage</div>
-
-<h2 class="section-title">
-Records supporting the dashboard
-</h2>
-
-<div class="metric-grid">
-
-    <div class="metric-card metric-accent-blue">
-        <div class="metric-label">Policy records</div>
-        <div class="metric-value">{len(reviewed_df):,}</div>
-        <div class="metric-note">Reviewed state records</div>
-    </div>
-
-    <div class="metric-card metric-accent-orange">
-        <div class="metric-label">Market records</div>
-        <div class="metric-value">{len(market_df):,}</div>
-        <div class="metric-note">Operator-market observations</div>
-    </div>
-
-    <div class="metric-card metric-accent-blue">
-        <div class="metric-label">Safety records</div>
-        <div class="metric-value">{len(safety_df):,}</div>
-        <div class="metric-note">Reported safety outcomes</div>
-    </div>
-
-    <div class="metric-card metric-accent-blue">
-        <div class="metric-label">Waymo scenarios processed</div>
-        <div class="metric-value">{scenario_count:,}</div>
-        <div class="metric-note">Scenario-level research coverage</div>
-    </div>
-
-</div>
-
-<div class="info-box-blue">
-These totals describe dashboard research coverage. They do not represent
-the total scale of autonomous vehicle activity in the United States.
-</div>
-""",
-    unsafe_allow_html=True,
+coverage_col3.metric(
+    "Waymo scenarios processed",
+    f"{scenario_count:,}",
 )
+
+st.info(
+    "Use the sidebar to explore consumer access, safety evidence, state policy "
+    "conditions, scenario data, methodology, and source transparency."
+)
+
+st.divider()
 
 
 # ---------------------------------------------------------
 # STATE COMPARISON
 # ---------------------------------------------------------
 
-st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+st.subheader("State Comparison")
 
-st.markdown(
-    """
-<div class="section-label">State comparison</div>
-
-<h2 class="section-title">
-Detailed policy records
-</h2>
-
-<p class="section-description">
-Review the underlying state policy indicators and compare scores,
-commercial permissions, statewide rules, and research status.
-</p>
-""",
-    unsafe_allow_html=True,
+st.caption(
+    "Review the current policy coding for all states included in the tracker."
 )
 
-comparison_columns = [
+preferred_columns = [
+    "state",
+    "state_code",
+    "overall_score",
+    "commercial_operation_allowed",
+    "driverless_testing_allowed",
+    "statewide_rules",
+    "local_rules_allowed",
+    "human_operator_required",
+    "special_permit_required",
+    "insurance_minimum",
+    "research_status",
+    "last_verified",
+    "source_url",
+]
+
+display_columns = [
     column
-    for column in [
-        "state",
-        "state_code",
-        "overall_score",
-        "commercial_operation_allowed",
-        "statewide_rules",
-        "local_rules_allowed",
-        "insurance_minimum",
-        "research_status",
-    ]
+    for column in preferred_columns
     if column in reviewed_df.columns
 ]
 
-comparison_df = (
-    reviewed_df[comparison_columns]
-    .sort_values("overall_score", ascending=False)
+comparison_df = reviewed_df[
+    display_columns
+].sort_values(
+    "overall_score",
+    ascending=False,
 )
+
+column_config = {}
+
+if "state" in comparison_df.columns:
+    column_config["state"] = "State"
+
+if "state_code" in comparison_df.columns:
+    column_config["state_code"] = "Code"
+
+if "overall_score" in comparison_df.columns:
+    column_config["overall_score"] = st.column_config.ProgressColumn(
+        "Policy score",
+        min_value=0,
+        max_value=100,
+        format="%d",
+    )
+
+if "commercial_operation_allowed" in comparison_df.columns:
+    column_config["commercial_operation_allowed"] = st.column_config.CheckboxColumn(
+        "Commercial operation"
+    )
+
+if "driverless_testing_allowed" in comparison_df.columns:
+    column_config["driverless_testing_allowed"] = st.column_config.CheckboxColumn(
+        "Driverless testing"
+    )
+
+if "statewide_rules" in comparison_df.columns:
+    column_config["statewide_rules"] = st.column_config.CheckboxColumn(
+        "Statewide framework"
+    )
+
+if "local_rules_allowed" in comparison_df.columns:
+    column_config["local_rules_allowed"] = st.column_config.CheckboxColumn(
+        "Separate local rules"
+    )
+
+if "human_operator_required" in comparison_df.columns:
+    column_config["human_operator_required"] = st.column_config.CheckboxColumn(
+        "Human operator required"
+    )
+
+if "special_permit_required" in comparison_df.columns:
+    column_config["special_permit_required"] = st.column_config.CheckboxColumn(
+        "Special permit required"
+    )
+
+if "insurance_minimum" in comparison_df.columns:
+    column_config["insurance_minimum"] = st.column_config.NumberColumn(
+        "Insurance minimum",
+        format="$%d",
+    )
+
+if "source_url" in comparison_df.columns:
+    column_config["source_url"] = st.column_config.LinkColumn(
+        "Official source",
+        display_text="Open source",
+    )
 
 st.dataframe(
     comparison_df,
-    use_container_width=True,
+    column_config=column_config,
+    width="stretch",
     hide_index=True,
-    column_config={
-        "state": st.column_config.TextColumn("State"),
-        "state_code": st.column_config.TextColumn("Code"),
-        "overall_score": st.column_config.ProgressColumn(
-            "Policy score",
-            min_value=0,
-            max_value=100,
-            format="%.0f",
-        ),
-        "commercial_operation_allowed": st.column_config.CheckboxColumn(
-            "Commercial operation"
-        ),
-        "statewide_rules": st.column_config.CheckboxColumn(
-            "Statewide framework"
-        ),
-        "local_rules_allowed": st.column_config.CheckboxColumn(
-            "Local rules allowed"
-        ),
-        "insurance_minimum": st.column_config.TextColumn(
-            "Insurance minimum"
-        ),
-        "research_status": st.column_config.TextColumn(
-            "Research status"
-        ),
-    },
 )
