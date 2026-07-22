@@ -14,10 +14,10 @@ st.set_page_config(
 # ---------------------------------------------------------
 # HERO IMAGE
 # Put your image here:
-# assets/av_hero.jpg
+# assets/av-dashboard-hero.jpg
 # ---------------------------------------------------------
 
-hero_image = Path("assets/av_hero.jpg")
+hero_image = Path("assets/av-dashboard-hero.jpg")
 
 if hero_image.exists():
     encoded_image = base64.b64encode(
