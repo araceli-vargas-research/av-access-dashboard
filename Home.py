@@ -77,6 +77,11 @@ st.markdown(
     margin-bottom: 1.5rem;
 }
 
+st.image(
+    "assets/av-dashboard-hero.jpg",
+    width="stretch",
+)
+
 .hero-title {
     color: #ffffff;
     font-size: clamp(3.5rem, 6vw, 6rem);
