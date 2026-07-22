@@ -1,196 +1,200 @@
+import base64
 from pathlib import Path
 
-import pandas as pd
-import plotly.express as px
 import streamlit as st
 
+
 st.set_page_config(
-    page_title="AV Access and Safety Tracker",
-    page_icon="🚗",
+    page_title="Autonomous Vehicle Access Tracker",
+    page_icon="🚘",
     layout="wide",
 )
 
-POLICY_PATH = Path("data/processed/state_access.csv")
-MARKET_PATH = Path("data/processed/market_tracker.csv")
-SAFETY_PATH = Path("data/processed/safety_data.csv")
-WAYMO_PATH = Path("data/processed/waymo_scenario_metrics.csv")
 
-policy_df = pd.read_csv(POLICY_PATH)
-market_df = pd.read_csv(MARKET_PATH)
-safety_df = pd.read_csv(SAFETY_PATH)
+# ---------------------------------------------------------
+# HERO IMAGE
+# Put your image here:
+# assets/av_hero.jpg
+# ---------------------------------------------------------
 
-reviewed_df = policy_df[
-    policy_df["research_status"] != "Not reviewed"
-].copy()
+hero_image = Path("assets/av_hero.jpg")
 
-st.title("Autonomous Vehicle Access and Safety Tracker")
-st.caption(
-    "A public policy dashboard tracking consumer access, safety evidence, "
-    "regulatory conditions, and data transparency."
-)
+if hero_image.exists():
+    encoded_image = base64.b64encode(
+        hero_image.read_bytes()
+    ).decode("utf-8")
 
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric(
-    "Active markets",
-    market_df["market"].nunique(),
-)
-
-col2.metric(
-    "Publicly accessible markets",
-    int((market_df["public_access"] == "Yes").sum()),
-)
-
-col3.metric(
-    "States reviewed",
-    len(reviewed_df),
-)
-
-col4.metric(
-    "Average policy score",
-    f"{reviewed_df['overall_score'].mean():.0f}/100",
-)
-
-st.subheader("National Policy Landscape")
-
-fig = px.choropleth(
-    reviewed_df,
-    locations="state_code",
-    locationmode="USA-states",
-    color="overall_score",
-    scope="usa",
-    hover_name="state",
-    hover_data={
-        "state_code": False,
-        "commercial_operation_allowed": True,
-        "statewide_rules": True,
-        "local_rules_allowed": True,
-        "human_operator_required": True,
-        "overall_score": True,
-    },
-    range_color=(0, 100),
-    color_continuous_scale=[
-        "#F1F2F7",
-        "#F5C58F",
-        "#EE8A1D",
-    ],
-    labels={
-        "overall_score": "Policy score",
-        "commercial_operation_allowed": "Commercial operation",
-        "statewide_rules": "Statewide framework",
-        "local_rules_allowed": "Local rules allowed",
-        "human_operator_required": "Human operator required",
-    },
-)
-
-fig.update_layout(
-    height=510,
-    margin=dict(l=0, r=0, t=0, b=0),
-)
-
-st.plotly_chart(fig, width="stretch")
-
-left, right = st.columns([1, 1])
-
-with left:
-    st.subheader("Consumer Access Snapshot")
-
-    access_summary = (
-        market_df.groupby("operator", as_index=False)
-        .agg(
-            markets=("market", "nunique"),
-            states=("state", "nunique"),
-        )
-        .sort_values("markets", ascending=False)
+    hero_image_style = (
+        "background-image: "
+        f"url('data:image/jpeg;base64,{encoded_image}'); "
+        "background-size: cover; "
+        "background-position: center;"
     )
-
-    access_fig = px.bar(
-        access_summary,
-        x="operator",
-        y="markets",
-        text="markets",
-        color="markets",
-        color_continuous_scale=[
-            "#F1F2F7",
-            "#F5C58F",
-            "#EE8A1D",
-        ],
-        labels={
-            "operator": "",
-            "markets": "Markets",
-        },
-    )
-
-    access_fig.update_layout(
-        height=390,
-        coloraxis_showscale=False,
-        margin=dict(l=0, r=0, t=10, b=0),
-    )
-
-    st.plotly_chart(access_fig, width="stretch")
-
-with right:
-    st.subheader("Safety Snapshot")
-
-    safety_chart = px.bar(
-        safety_df.sort_values("value"),
-        x="value",
-        y="metric",
-        orientation="h",
-        text="value",
-        color="value",
-        color_continuous_scale=[
-            "#F1F2F7",
-            "#F5C58F",
-            "#EE8A1D",
-        ],
-        labels={
-            "value": "Percent fewer crashes",
-            "metric": "",
-        },
-    )
-
-    safety_chart.update_traces(
-        texttemplate="%{text}% fewer",
-        textposition="outside",
-    )
-
-    safety_chart.update_layout(
-        height=390,
-        coloraxis_showscale=False,
-        margin=dict(l=0, r=70, t=10, b=0),
-        xaxis_range=[0, 105],
-    )
-
-    st.plotly_chart(safety_chart, width="stretch")
-
-st.subheader("Research Coverage")
-
-coverage_col1, coverage_col2, coverage_col3 = st.columns(3)
-
-coverage_col1.metric(
-    "Policy records",
-    len(reviewed_df),
-)
-
-coverage_col2.metric(
-    "Market records",
-    len(market_df),
-)
-
-if WAYMO_PATH.exists():
-    try:
-        waymo_df = pd.read_csv(WAYMO_PATH)
-        coverage_col3.metric(
-            "Waymo scenarios processed",
-            f"{len(waymo_df):,}",
-        )
-    except pd.errors.EmptyDataError:
-        coverage_col3.metric("Waymo scenarios processed", "0")
 else:
-    coverage_col3.metric("Waymo scenarios processed", "0")
+    hero_image_style = (
+        "background: linear-gradient(135deg, #dbe4ef, #9fb0c8);"
+    )
 
-st.info(
-    "Use the sidebar to explore consumer access, safety evidence, "
-    "state policy conditions, scenario data, methodology, and source transparency."
+
+# ---------------------------------------------------------
+# PAGE STYLING
+# ---------------------------------------------------------
+
+st.markdown(
+    """
+<style>
+.block-container {
+    max-width: 1500px;
+    padding-top: 1.5rem;
+    padding-bottom: 3rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 650px;
+    overflow: hidden;
+    border-radius: 22px;
+    margin-bottom: 2.5rem;
+}
+
+.hero-text {
+    background-color: #13264f;
+    padding: 5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.hero-label {
+    color: #ee8a1d;
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+}
+
+.hero-title {
+    color: #ffffff;
+    font-size: clamp(3.5rem, 6vw, 6rem);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+    font-weight: 800;
+    margin: 0 0 2rem 0;
+}
+
+.hero-description {
+    color: #d8dfed;
+    font-size: clamp(1.1rem, 1.5vw, 1.4rem);
+    line-height: 1.6;
+    max-width: 650px;
+    margin: 0;
+}
+
+.hero-image {
+    min-height: 650px;
+}
+
+.intro-section {
+    max-width: 950px;
+    margin: 0 auto;
+    text-align: center;
+    padding: 1rem 1rem 2rem 1rem;
+}
+
+.intro-label {
+    color: #ee8a1d;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+}
+
+.intro-title {
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    line-height: 1.2;
+    font-weight: 750;
+    margin: 0 0 1rem 0;
+}
+
+.intro-description {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    opacity: 0.8;
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .hero {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-text {
+        padding: 4rem 2rem;
+    }
+
+    .hero-image {
+        min-height: 375px;
+    }
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+
+# ---------------------------------------------------------
+# HERO SECTION
+# ---------------------------------------------------------
+
+st.markdown(
+f"""
+<section class="hero">
+<div class="hero-text">
+<div class="hero-label">Autonomous Vehicle Policy</div>
+
+<h1 class="hero-title">
+Autonomous vehicle access
+</h1>
+
+<p class="hero-description">
+Autonomous vehicles have the potential to make roads safer, expand mobility,
+lower transportation costs, and give consumers more choice. This tracker
+examines where Americans can access autonomous vehicle services and which
+regulatory barriers continue to limit deployment.
+</p>
+</div>
+
+<div class="hero-image" style="{hero_image_style}"></div>
+</section>
+""",
+    unsafe_allow_html=True,
+)
+
+
+# ---------------------------------------------------------
+# INTRO SECTION
+# ---------------------------------------------------------
+
+st.markdown(
+    """
+<section class="intro-section">
+<div class="intro-label">Explore the tracker</div>
+
+<h2 class="intro-title">
+Access, safety, and regulation across the United States
+</h2>
+
+<p class="intro-description">
+Use the pages in the sidebar to compare state policies, review consumer
+access, examine safety evidence, and understand the methodology behind
+the tracker.
+</p>
+</section>
+""",
+    unsafe_allow_html=True,
 )
