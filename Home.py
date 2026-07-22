@@ -80,7 +80,7 @@ st.markdown(
 st.image(
     "assets/av-dashboard-hero.jpg",
     width="stretch",
-)
+)}
 
 .hero-title {
     color: #ffffff;
